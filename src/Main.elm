@@ -140,6 +140,7 @@ view model =
             , li [] [ navigationLink "/reviews/the-century-of-the-self" "The Century of the Self" ]
             , li [] [ navigationLink "/reviews/public-opinion" "Public Opinion" ]
             , li [] [ navigationLink "/reviews/shah-of-shahs" "Shah of Shahs" ]
+            , li [] [ navigationLink "/unknown" "This Route Doesn\'t Exist" ]
             ]
         , div []
             [ case model.request of

@@ -1,7 +1,7 @@
-module Route exposing (Route(..), fromString)
+module Route exposing (Route, fromString)
 
-import Url exposing (Url)
-import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, string, top)
+import Url
+import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, string)
 
 
 type Route
@@ -27,9 +27,4 @@ fromString maybeUrl =
             NotFound
 
         Just url ->
-            case Parser.parse routeParser url of
-                Nothing ->
-                    NotFound
-
-                Just route ->
-                    route
+            Maybe.withDefault NotFound (Parser.parse routeParser url)

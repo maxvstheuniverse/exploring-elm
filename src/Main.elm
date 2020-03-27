@@ -4,130 +4,152 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, preventDefaultOn)
+import Http
 import Json.Decode as Decode
-import Url
-import Url.Parser as Parser exposing ((</>))
-
 import Ports exposing (onUrlChange, pushUrl)
+import Route exposing (Route)
+
+
 
 -- Application
 
+
 main : Program String Model Msg
 main =
-  Browser.element
-    { init = init
-    , view = view
-    , update = update
-    , subscriptions = subscriptions
-    }
+    Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
+
 
 
 -- MODEL
+
+
+type Request
+    = Failure
+    | Loading
+    | Success String
+
+
+type Msg
+    = UrlChanged String
+    | NavigateTo String
+    | Decrement
+    | Increment
+    | GotText (Result Http.Error String)
+
+
 type alias Model =
-    { location : Location
-    , counter : Int }
+    { route : Route
+    , url : String
+    , counter : Int
+    , request : Request
+    }
+
 
 
 -- INIT
 
-init : String -> (Model, Cmd Msg)
+
+init : String -> ( Model, Cmd Msg )
 init flags =
-  ({ location = toLocation flags, counter = 0 }, Cmd.none)
+    ( { route = Route.fromString flags
+      , url = flags
+      , counter = 0
+      , request = Loading
+      }
+    , Http.get
+        { url = "http://localhost:8080/api/get_student_library"
+        , expect = Http.expectString GotText
+        }
+    )
+
 
 
 -- UPDATE
-
-type Msg
-    = UrlChanged Location
-    | NavigateTo String
-    | Decrement
-    | Increment
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UrlChanged newLocation ->
-            ( { model | location = newLocation } , Cmd.none )
+        UrlChanged url ->
+            ( { model | route = Route.fromString url, url = url }, Cmd.none )
 
         NavigateTo path ->
             ( model, pushUrl path )
 
+        GotText result ->
+            case result of
+                Ok fullText ->
+                    ( { model | request = Success fullText }, Cmd.none )
+
+                Err _ ->
+                    ( { model | request = Failure }, Cmd.none )
+
         Decrement ->
-            ( { model | counter = model.counter - 1} , Cmd.none )
+            ( { model | counter = model.counter - 1 }, Cmd.none )
 
         Increment ->
-            ( { model | counter = model.counter + 1} , Cmd.none )
+            ( { model | counter = model.counter + 1 }, Cmd.none )
+
 
 
 -- SUBSCRIPTIONS
 
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    onUrlChange (toLocation >> UrlChanged)
+    onUrlChange UrlChanged
 
 
--- NAVIGATION & ROUTING
 
-type alias Location =
-    { route : Route
-    , url : String
-    }
-
-
-type Route
-  = Home
-  | Profile
-  | Review String
-  | NotFound
-
-
-routeParser : Parser.Parser (Route -> a) a
-routeParser =
-  Parser.oneOf
-    [ Parser.map Home Parser.top
-    , Parser.map Profile (Parser.s "profile")
-    , Parser.map Review (Parser.s "reviews" </> Parser.string)
-    ]
-
-
-toLocation : String -> Location
-toLocation string =
-  case Url.fromString string of
-    Nothing ->
-        { route = NotFound, url = "" }
-
-    Just url ->
-        { route = Maybe.withDefault NotFound (Parser.parse routeParser url), url = Url.toString url }
-
-
+-- NAVIGATION
 -- Decode.succeed skips any decoding and just returns the value. In this case a message to navigate to the given path.
+
+
 navigationLink : String -> String -> Html Msg
 navigationLink path label =
-    a [ href path, preventDefaultOn "click" (Decode.succeed(NavigateTo path, True)) ] [ text label ]
+    a [ href path, preventDefaultOn "click" (Decode.succeed ( NavigateTo path, True )) ] [ text label ]
+
 
 
 -- VIEW
+
 
 view : Model -> Html Msg
 view model =
     div []
         [ text "The current URL is: "
-        , b [] [ text model.location.url ]
+        , b [] [ text model.url ]
         , div []
-            [ button [ onClick Decrement] [ text "-" ]
-            , span [ style "width" "100px"
-                   , style "text-align" "center"
-                   , style "display" "inline-block"
-                   ] [ text (String.fromInt model.counter) ]
+            [ button [ onClick Decrement ] [ text "-" ]
+            , span
+                [ style "width" "100px"
+                , style "text-align" "center"
+                , style "display" "inline-block"
+                ]
+                [ text (String.fromInt model.counter) ]
             , button [ onClick Increment ] [ text "+" ]
             ]
-        , ul [ style "list-style" "none"]
+        , ul [ style "list-style" "none" ]
             [ li [] [ navigationLink "/" "Home" ]
-            , li [] [ navigationLink "/profile" "Profile" ]
+            , li [] [ navigationLink "/profile/max" "Profile" ]
             , li [] [ navigationLink "/reviews/the-century-of-the-self" "The Century of the Self" ]
             , li [] [ navigationLink "/reviews/public-opinion" "Public Opinion" ]
             , li [] [ navigationLink "/reviews/shah-of-shahs" "Shah of Shahs" ]
             ]
-        ]
+        , div []
+            [ case model.request of
+                Failure ->
+                    text "I was unable to load your request."
 
+                Loading ->
+                    text "Loading..."
+
+                Success fullText ->
+                    pre [] [ text fullText ]
+            ]
+        ]

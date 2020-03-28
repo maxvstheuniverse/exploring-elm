@@ -29,9 +29,9 @@ main =
 
 
 type Request
-    = Failure
-    | Loading
+    = Loading
     | Success String
+    | Failure
 
 
 type Msg
@@ -62,7 +62,7 @@ init flags =
       , request = Loading
       }
     , Http.get
-        { url = "http://localhost:8080/api/get_student_library"
+        { url = "https://localhost:8080/api/get_student_library"
         , expect = Http.expectString GotText
         }
     )
@@ -140,7 +140,7 @@ view model =
             , li [] [ navigationLink "/reviews/the-century-of-the-self" "The Century of the Self" ]
             , li [] [ navigationLink "/reviews/public-opinion" "Public Opinion" ]
             , li [] [ navigationLink "/reviews/shah-of-shahs" "Shah of Shahs" ]
-            , li [] [ navigationLink "/unknown" "This Route Doesn\'t Exist" ]
+            , li [] [ navigationLink "/unknown" "This Route Doesn't Exist" ]
             ]
         , div []
             [ case model.request of
